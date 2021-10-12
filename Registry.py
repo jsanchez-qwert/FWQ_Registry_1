@@ -11,7 +11,7 @@ IP = socket.gethostbyname(socket.gethostname())
 MAX_CONEXIONES = 2
 
 
-def registrar(alias, nombre, passwd):
+def registrar(alias, nombre, passwd) -> bool:
     """
     TODO
     :param alias: indice y nick del usuario
@@ -23,35 +23,40 @@ def registrar(alias, nombre, passwd):
 
 
 def handle_client(conn, addr):
+    HEADER = 10
     print(f"NUEVA CONEXION: {addr}")
-    connected = True
-    while connected:
-        alias_length = int(conn.recv(10))
-        alias = conn.recv(alias_length)
-        name_length = int(conn.recv(10))
-        name = conn.revc(name_length)
-        passwd_length = int(conn.recv(10))
-        passwd = conn.revc(passwd_length)
+    credentials = {'alias':'', 'name':'','passwd':''}
+    for i in credentials:
+        print('a')
+        c_length = int(conn.recv(HEADER))
+        credentials[i] = conn.recv(c_length).decode()
+        print(f"recibido [{i}] = {credentials[i]}")
 
-        print(f'registro de  {addr} - alias:{alias} nombre:{name} passwd:{passwd}')
-        if registrar(alias, name, passwd):
-            conn.send(b'ok')
-        else:
-            conn.send(b'no')
-        conn.close()
+    print(f'registro de  {addr} - '
+          f'alias:{credentials["alias"]} '
+          f'nombre:{credentials["name"]} '
+          f'passwd:{credentials["passwd"]}')
+    if registrar(credentials["alias"], credentials["name"], credentials["passwd"]):
+        print(f"REGISTRADO CON EXITO ")
+        conn.send(b'ok')
+    else:
+        print(f"ERROR AL REGISTRAR: ")
+        conn.send(b'no')
+    conn.close()
+    print(f"CONEXION FINALIZADA {addr}")
 
 
 def repartidor(server):
     server.listen()
     print(f"ESCICHANDO EN {IP}:{PORT}")
     num_conexiones = threading.active_count() - 1
-    print(f"Nº CONEXIONES ACTUAL: {num_conexiones}")
+    print(f"N CONEXIONES ACTUAL: {num_conexiones}")
     while True:
         conn, addr = server.accept()
         num_conexiones = threading.active_count()
         if num_conexiones >= MAX_CONEXIONES:
             print("LIMITE DE CONEXIONES EXCEDIDO")
-            conn.send("EL SERVIDOR HA EXCEDIDO EL LIMITE DE CONEXIONES")
+            conn.send(b"EL SERVIDOR HA EXCEDIDO EL LIMITE DE CONEXIONES")
             conn.close()
             num_conexiones = threading.active_count() - 1
         else:
@@ -64,4 +69,10 @@ def repartidor(server):
 if __name__ == '__main__':
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     serversocket.bind((IP, PORT))
-    repartidor(serversocket)
+    try:
+        repartidor(serversocket)
+    except Exception as e:
+        print("ERROR: ", e)
+    finally:
+        serversocket.close()
+
