@@ -1,17 +1,16 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
+"""
+    Se encarga de registrar a los usuarios conforme las credenciales que les manden
+"""
 import socket
 import threading
+from sys import argv
+import re
 
-PORT = 4040
 IP = socket.gethostbyname(socket.gethostname())
 MAX_CONEXIONES = 2
 
 
-def registrar(alias, nombre, passwd) -> bool:
+def registrar(alias: str, nombre: str, passwd: str) -> bool:
     """
     TODO
     :param alias: indice y nick del usuario
@@ -66,7 +65,31 @@ def repartidor(server):
             print("CONEXIONES RESTANTES PARA CERRAR EL SERVICIO", MAX_CONEXIONES - num_conexiones)
 
 
+def filtra(args: list) -> bool:
+    """
+    Indica si el formato de los argumentos es el correcto
+    :param args: Argumentos del programa
+    """
+    if len(args) != 2:
+        print("Numero incorrecto de argumentos")
+        return False
+
+    regex_1 = '^[0-9]{1,5}$'
+    if not re.match(regex_1, args[1]):
+        print("Puerto incorrecta")
+        return False
+    return True
+
+
 if __name__ == '__main__':
+    if not filtra(argv):
+        print("ERROR: Argumentos incorrectos")
+        print("Usage: registry.py <puerto> ")
+        print("Example: registry.py 5054 ")
+        exit()
+
+    PORT = int(argv[1])
+
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     serversocket.bind((IP, PORT))
     try:
