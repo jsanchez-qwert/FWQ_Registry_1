@@ -13,6 +13,10 @@ cur.execute("create table atracciones("
             "id string primary key,"
             "localizacion int not null);")
 
+# create a table for store a large string
+cur.execute("create table mapa("
+            "mapa string primary key);")
+
 locs = {'A': 262, 'B': 367, 'C': 53, 'D': 150}
 for i in locs:
     cur.execute("insert into atracciones (id,localizacion) "
