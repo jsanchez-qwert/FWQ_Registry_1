@@ -5,11 +5,13 @@
 import socket
 import sqlite3
 import threading
+import hashlib
 from sys import argv
 import re
+import os
 
 IP = socket.gethostbyname(socket.gethostname())
-MAX_CONEXIONES = 2
+MAX_CONEXIONES = 10
 
 
 def registrar(alias: str, nombre: str, passwd: str) -> bool:
@@ -22,6 +24,10 @@ def registrar(alias: str, nombre: str, passwd: str) -> bool:
     final = True
     con = sqlite3.connect(DATABASE)
     cur = con.cursor()
+    # hash the password
+    passwd = hashlib.sha256(passwd.encode()).hexdigest()
+
+
 
     sql_comand = f"insert into users (alias, nombre, passwd)" \
                  f" values ('{alias}','{nombre}','{passwd}');"
@@ -41,6 +47,7 @@ def login(alias, passwd):
     con = sqlite3.connect(DATABASE)
     cur = con.cursor()
     sol = False
+    passwd = hashlib.sha256(passwd.encode()).hexdigest()
     for _ in cur.execute(f"select * from users "
                          f"where "
                          f"alias like '{alias}' and "
@@ -51,6 +58,8 @@ def login(alias, passwd):
 
 
 def modificar(alias, passwd, n_alias, n_nombre, n_passwd) -> bool:
+    passwd = hashlib.sha256(passwd.encode()).hexdigest()
+    n_passwd = hashlib.sha256(n_passwd.encode()).hexdigest()
     if not login(alias, passwd):
         return False
 
@@ -60,14 +69,20 @@ def modificar(alias, passwd, n_alias, n_nombre, n_passwd) -> bool:
 
     try:
         if n_alias != '':
-            cur.execute(f"update users set alias = '{n_alias}' where alias like '{alias}';")
+            cur.execute(
+                f"update users set alias = '{n_alias}' where alias like '{alias}';"
+            )
             alias = n_alias
             print("actualizado alias")
         if n_nombre != '':
-            cur.execute(f"update users set nombre = '{n_nombre}' where alias like '{alias}';")
+            cur.execute(
+                f"update users set nombre = '{n_nombre}' where alias like '{alias}';"
+            )
             print("actualizado nombre")
         if n_passwd != '':
-            cur.execute(f"update users set passwd = '{n_passwd}' where alias like '{alias}';")
+            cur.execute(
+                f"update users set passwd = '{n_passwd}' where alias like '{alias}';"
+            )
             print("actualizado passwd")
 
         con.commit()
@@ -131,7 +146,8 @@ def repartidor(server):
             thread = threading.Thread(target=handle_client, args=(conn, addr))
             thread.start()
             print(f"[CONEXIONES ACTIVAS] {num_conexiones}")
-            print("CONEXIONES RESTANTES PARA CERRAR EL SERVICIO", MAX_CONEXIONES - num_conexiones)
+            print("CONEXIONES RESTANTES PARA CERRAR EL SERVICIO",
+                  MAX_CONEXIONES - num_conexiones)
 
 
 def filtra(args: list) -> bool:
@@ -150,6 +166,15 @@ def filtra(args: list) -> bool:
     return True
 
 
+def launch_api(argv: list):
+    if not filtra(argv):
+        print("Formato de entrada incorrecto")
+        exit()
+    PORT = int(argv[1]) + 100
+    os.system("python3 ./Api_Registry.py " + str(PORT) + ' ' + argv[2])
+    print("¿FInal API?")
+
+
 if __name__ == '__main__':
     if not filtra(argv):
         print("ERROR: Argumentos incorrectos")
@@ -163,7 +188,10 @@ if __name__ == '__main__':
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     serversocket.bind((IP, PORT))
     try:
+        # run laucnh api as thread
+        threading.Thread(target=launch_api, args=(argv, )).start()
         repartidor(serversocket)
+
     except Exception as e:
         print("ERROR: ", e)
     finally:
